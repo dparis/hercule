@@ -18,7 +18,10 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
 
-  # specify any dependencies here; for example:
+  s.add_runtime_dependency "rb-libsvm"
+  s.add_runtime_dependency "fselector"
+  s.add_runtime_dependency "gtokenizer"
+  s.add_runtime_dependency "fast-stemmer"
+
   # s.add_development_dependency "rspec"
-  # s.add_runtime_dependency "rest-client"
 end
