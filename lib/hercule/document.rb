@@ -5,19 +5,14 @@ module Hercule
     #----------------------------------------------------------------------------
     # Class Constants
     #----------------------------------------------------------------------------
-    DEFAULT_DOMAIN = :default
+    DEFAULT_DOMAIN_ID = :training
 
     #----------------------------------------------------------------------------
     # Class Variables
     #----------------------------------------------------------------------------
 
-    # The feature dictionary contains all unique tokens in the corpus
-    # scoped to the document domain, key misses should result in an empty hash
-    @@feature_dictionary = Hash.new{ |h, k| h[k] = {} }
-
-    # The document cache should hold a hash of uniquely indexed hashes
-    # of docment instances, key misses should result in an empty hash
-    @@document_cache = Hash.new{ |h, k| h[k] = {} }
+    # This is a hash of Document::Domain objects, keyed off domain values
+    @@document_domains = {}
 
     #----------------------------------------------------------------------------
     # Attributes
@@ -27,7 +22,7 @@ module Hercule
     def initialize( features, options = {} )
       # Set up default values
       @feature_vector = []
-      @domain = options[:domain] || DEFAULT_DOMAIN
+      @domain_id = options[:domain_id] || DEFAULT_DOMAIN_ID
       @id = options[:id] || UUID.new
       @metadata = options[:metadata] || nil
 
@@ -48,23 +43,28 @@ module Hercule
       # Add self to document cache
       cache_document
       
-      # Rebuild the feature dictionary
-      rebuild_feature_dictionary
+      # Rebuild the feature dictionary if the current domain is not locked
+      rebuild_feature_dictionary unless current_domain.locked?
       
       # Calculate the feature vector
       calculate_feature_vector
     end
 
+    def current_domain
+      @@document_domains[@domain_id]
+    end
+
     def feature_dictionary
-      @@feature_dictionary[@domain]
+      current_domain.dictionary
     end
 
     #----------------------------------------------------------------------------
     # Class Methods
     #----------------------------------------------------------------------------
+    # TODO: FIX THIS  --  Fri Mar  2 13:49:29 2012
     class << self
       def define_feature_dictionary( feature_dictionary, domain = nil )
-        domain ||= DEFAULT_DOMAIN
+        domain ||= DEFAULT_DOMAIN_ID
         @@feature_dictionary[domain] = feature_dictionary
       end
     end
@@ -75,24 +75,47 @@ module Hercule
     protected
 
     def cache_document
-      @@document_cache[@domain][@id] = self      
+      # Instantiate a new Domain with the given id unless the class
+      # variable already has the key
+      unless @@document_domains.has_key?( @domain_id )
+        @@document_domains[@domain_id] = Domain.new( @domain_id )
+      end
+
+      domain = @@document_domains[@domain_id]
+      domain.cache[@id] = self
     end
 
     # Rebuild the feature dictionary from the document cache
     # associated with this instance's domain, and then rebuild all
     # feature vectors for documents in this domain
     def rebuild_feature_dictionary
-      docs = @@document_cache[@domain]
+      if current_domain.locked?
+        warn "[HERCULE] attempt to rebuild feature dictionary for locked domain '#{@domain}'"
+        return
+      end
+      
+      # Extract the document instances from the cache hash values
+      docs = current_domain.cache.values
 
       # Compile a list of unique features from each cached doc
-      feature_dictionary = docs.values.inject([]){ |dict, doc| dict += doc.feature_list }
-      feature_dictionary = feature_dictionary.flatten.uniq
+      feature_dictionary = current_domain.dictionary
+      
+      max_dict_id = feature_dictionary.keys.max || -1
 
-      # Stash the newly rebuilt feature dictionary
-      @@feature_dictionary[@domain] = feature_dictionary
+      docs.each do |doc|
+        # Iterate all features for this doc instance, and unless the
+        # dictionary already contains the feature, add it and assign a
+        # new feature id
+        doc.feature_list.each do |feature|
+          unless feature_dictionary.has_value?( feature )
+            max_dict_id += 1
+            feature_dictionary[max_dict_id] = feature
+          end
+        end
+      end
 
       # Rebuild all feature vectors for documents in this domain
-      docs.values.each{ |doc| doc.calculate_feature_vector }
+      docs.each{ |doc| doc.calculate_feature_vector }
     end
 
     # Calculate the feature vector for the document's features using a
@@ -100,10 +123,55 @@ module Hercule
     # NOTE: Consider using a BNS feature scaling approach - See paper
     # by G. Forman, http://goo.gl/igUJ0
     def calculate_feature_vector
-      fd = @@feature_dictionary[@domain].map
+      fd = current_domain.dictionary
+      fd_ids = fd.keys.sort
 
-      @feature_vector = fd.map do |dict_entry|
-        @feature_list.include?( dict_entry ) ? 1 : 0 # TODO: TF-IDF here  --  Thu Mar  1 19:25:21 2012
+      @feature_vector = fd_ids.map do |fd_id|
+        feature = fd[fd_id]
+        @feature_list.include?( feature ) ? 1 : 0 # TODO: TF-IDF here  --  Thu Mar  1 19:25:21 2012
+      end
+    end
+
+    #----------------------------------------------------------------------------
+    # Nested Classes
+    #----------------------------------------------------------------------------
+    class Domain
+
+      #----------------------------------------------------------------------------
+      # Attributes
+      #----------------------------------------------------------------------------
+      attr_accessor :id, :cache, :dictionary
+
+      #----------------------------------------------------------------------------
+      # Instance Methods
+      #----------------------------------------------------------------------------
+      def initialize( id, cache = {}, dictionary = {} )
+        # The id of this document domain, should be unique within the
+        # scope of a single app
+        @id = id
+
+        # Hash of document instances keyed off of the document id
+        @cache = cache
+
+        # Hash of features for this document domain, keyed off of the
+        # id of the feature, which should map to the document vector position
+        # for that feature
+        @dictionary = dictionary
+
+        # Bool to indicate lock state
+        @locked = false
+      end
+
+      def locked?
+        @locked
+      end
+
+      def lock
+        @locked = true
+      end
+
+      def unlock
+        @locked = false
       end
     end
   end
