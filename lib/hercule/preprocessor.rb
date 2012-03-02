@@ -1,7 +1,7 @@
 require 'gtokenizer'
 
 module Hercule
-  class Normalizer
+  class Preprocessor
     #----------------------------------------------------------------------------
     # Attributes
     #----------------------------------------------------------------------------
@@ -31,7 +31,7 @@ module Hercule
       @stop_words = options[:stop_words] || DEFAULT_STOP_WORDS
     end
 
-    def normalize( text )
+    def preprocess( text )
       # Strip symbols and numerals if configured to do so
       text.gsub!( /[^[:alnum:]|[:space:]]/, '' ) if @strip_symbols
       text.gsub!( /[[:digit:]]/, '' ) if @strip_numerals
@@ -43,13 +43,13 @@ module Hercule
       # Strip out stop words if configured to do so
       tokens = (tokens - @stop_words) if @strip_stop_words
 
+      # Stem words if configured to do so
+      tokens.map!{ |t| t.stem } if @stem_words
+
       # Remove tokens shorter than the minimum token length
       tokens.reject!{ |t| t.length < @min_token_length } if @min_token_length
 
-      # Stem words if configured to do so
-      tokens.map!{ |t| t.stem }  if @stem_words
-
-      # Return normalized tokens
+      # Return processed tokens
       return tokens
     end
 
