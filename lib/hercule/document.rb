@@ -27,7 +27,7 @@ module Hercule
       @feature_vector = []
 
       @domain_id = options[:domain_id] || DEFAULT_DOMAIN_ID
-      @id = options[:id] || UUID.new
+      @id = options[:id] || UUID.new.generate
 
       @metadata = options[:metadata] || nil
 
