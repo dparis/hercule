@@ -1,6 +1,7 @@
 require 'hercule/version'
+require 'hercule/preprocessor'
+require 'hercule/document'
 require 'hercule/classifier'
-require 'hercule/normalizer'
 
 module Hercule
   # Your code goes here...
