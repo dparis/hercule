@@ -10,20 +10,25 @@ module Hercule
     #----------------------------------------------------------------------------
     # Class Variables
     #----------------------------------------------------------------------------
-
-    # This is a hash of Document::Domain objects, keyed off domain values
-    @@document_domains = {}
+    @@document_domains = {} # Hash of Domain objects, keyed off domain ids
 
     #----------------------------------------------------------------------------
     # Attributes
     #----------------------------------------------------------------------------
-    attr_reader :feature_vector, :feature_list, :id, :metadata
-    
+    attr_accessor :label, :metadata
+    attr_reader   :feature_vector, :feature_list, :id
+
+    #----------------------------------------------------------------------------
+    # Instance Methods
+    #----------------------------------------------------------------------------
     def initialize( features, options = {} )
       # Set up default values
+      @label = options[:label] || nil # Used as the classification in Classifier
       @feature_vector = []
+
       @domain_id = options[:domain_id] || DEFAULT_DOMAIN_ID
       @id = options[:id] || UUID.new
+
       @metadata = options[:metadata] || nil
 
       # Handle a string or a feature array
@@ -61,11 +66,9 @@ module Hercule
     #----------------------------------------------------------------------------
     # Class Methods
     #----------------------------------------------------------------------------
-    # TODO: FIX THIS  --  Fri Mar  2 13:49:29 2012
     class << self
-      def define_feature_dictionary( feature_dictionary, domain = nil )
-        domain ||= DEFAULT_DOMAIN_ID
-        @@feature_dictionary[domain] = feature_dictionary
+      def define_feature_dictionary
+        # TODO: FIX THIS  --  Fri Mar  2 13:49:29 2012
       end
     end
 
@@ -82,6 +85,15 @@ module Hercule
       end
 
       domain = @@document_domains[@domain_id]
+
+      # If a label is defined for the current document, assign it an
+      # id in the domain's label hash if it doesn't already exist
+      if @label && !domain.labels.has_key?( @label )
+        # The label will always be >= 0
+        new_label_id = (domain.labels.values.max || -1) + 1
+        domain.labels[@label] = new_label_id
+      end
+
       domain.cache[@id] = self
     end
 
@@ -140,23 +152,26 @@ module Hercule
       #----------------------------------------------------------------------------
       # Attributes
       #----------------------------------------------------------------------------
-      attr_accessor :id, :cache, :dictionary
+      attr_accessor :id, :cache, :dictionary, :labels
 
       #----------------------------------------------------------------------------
       # Instance Methods
       #----------------------------------------------------------------------------
-      def initialize( id, cache = {}, dictionary = {} )
+      def initialize( id, options = {} )
         # The id of this document domain, should be unique within the
         # scope of a single app
         @id = id
 
         # Hash of document instances keyed off of the document id
-        @cache = cache
+        @cache = options[:cache] || {}
 
         # Hash of features for this document domain, keyed off of the
         # id of the feature, which should map to the document vector position
         # for that feature
-        @dictionary = dictionary
+        @dictionary = options[:dictionary] || {}
+
+        # Hash of document label values and ids used in classification
+        @labels = options[:labels] || {}
 
         # Bool to indicate lock state
         @locked = false
