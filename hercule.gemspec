@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
   s.email       = ["dylan.paris+github@gmail.com"]
   s.homepage    = ""
   s.summary     = %q{Document Classification Engine}
-  s.description = %q{A flexible document classification engine}
+  s.description = %q{A flexible document classification gem}
 
   s.rubyforge_project = "hercule"
 
