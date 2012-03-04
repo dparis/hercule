@@ -79,8 +79,9 @@ module Hercule
         else
           # An identifier was passed, so create a new domain with
           # the specified id unless it has already been registered
-          unless @@document_domains.has_key?( document_domain )
-            @@document_domains[document_domain] = Domain.new
+          domain_id = document_domain.to_sym
+          unless @@document_domains.has_key?( domain_id )
+            @@document_domains[domain_id] = Domain.new( domain_id )
           end
         end
       end
