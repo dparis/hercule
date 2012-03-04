@@ -18,10 +18,10 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
 
-  s.add_runtime_dependency "gtokenizer"
-  s.add_runtime_dependency "fast-stemmer"
-  s.add_runtime_dependency "uuid"
-  s.add_runtime_dependency "libsvm-ruby-swig"
+  s.add_runtime_dependency "gtokenizer", "~> 1.0.0"
+  s.add_runtime_dependency "fast-stemmer", "~> 1.0.0"
+  s.add_runtime_dependency "uuid", "~> 2.3.5"
+  s.add_runtime_dependency "libsvm-ruby-swig", "~> 0.4.0"
 
-  # s.add_development_dependency "rspec"
+  s.add_development_dependency "rspec", "~> 2.8.0"
 end
