@@ -114,7 +114,8 @@ module Hercule
           file_name = ''
           if options[:file].is_a?( String )
             # Strip any suffix if specified
-            file_name = File.basename( options[:file], '.*' )
+            path, file_name = File.split( options[:file] )
+            file_name = File.join( path, File.basename( file_name, '.*' ) )
           else
             file_name = [@trained_document_domain.id, Time.now.to_i].join( '_' )
           end
@@ -154,8 +155,9 @@ module Hercule
 
       def load!( options )
         if options[:file]
-          # Get the basename of the file specified
-          file_name = File.basename( options[:file], '.*' )
+          # Get the basename of the path specified
+          path, file_name = File.split( options[:file] )
+          file_name = File.join( path, File.basename( file_name, '.*' ) )
 
           # Begin loading process
           load_status = false
