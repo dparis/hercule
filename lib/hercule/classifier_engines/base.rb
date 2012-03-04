@@ -23,6 +23,22 @@ module Hercule
       def classify( document )
         raise 'Virtual method on base class, must be defined on subclass'
       end
+
+      def persist( options )
+        persist!( options )
+      end
+
+      def persist!( options )
+        raise 'Virtual method on base class, must be defined on subclass'
+      end
+
+      def load( options )
+        load!( options )
+      end
+
+      def load!( options )
+        raise 'Virtual method on base class, must be defined on subclass'
+      end
     end
   end
 end
