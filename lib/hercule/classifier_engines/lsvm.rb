@@ -136,12 +136,14 @@ module Hercule
         begin
           load_status = load!( options )
         rescue TypeError => e
-          # Marshal.load raises a type error if the file is not found,
-          # or is incompatible/invalid, so ignore those, otherwise
-          # raise the TypeError
+          # Marshal.load raises a type error if IO object is invalid,
+          # or the mashaled data is incompatible/invalid, so ignore
+          # those cases, otherwise raise the TypeError
           unless e.message =~ /^(instance of|incompatible marshal)/
             raise e
           end
+        rescue Errno::ENOENT
+          # Raised by File.open if the file doesn't exist
         rescue RuntimeError
           # If the svm file does not exist, this exception will be raised
           # TODO: This needs to be changed to a custom exception class  --  Sat Mar  3 15:23:39 2012
