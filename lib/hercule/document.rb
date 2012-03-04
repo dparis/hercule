@@ -47,10 +47,10 @@ module Hercule
 
       # Add self to document cache if the current domain is not locked
       # and label is specified
-      cache_document if !current_domain.locked? && @label
+      cache_document if current_domain && !current_domain.locked? && @label
       
       # Rebuild the feature dictionary if the current domain is not locked
-      rebuild_feature_dictionary if !current_domain.locked?
+      rebuild_feature_dictionary if current_domain && !current_domain.locked?
       
       # Calculate the feature vector
       calculate_feature_vector
