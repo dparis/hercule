@@ -45,11 +45,12 @@ module Hercule
         @feature_list = features
       end
 
-      # Add self to document cache
-      cache_document
+      # Add self to document cache if the current domain is not locked
+      # and label is specified
+      cache_document if !current_domain.locked? && @label
       
       # Rebuild the feature dictionary if the current domain is not locked
-      rebuild_feature_dictionary unless current_domain.locked?
+      rebuild_feature_dictionary if !current_domain.locked?
       
       # Calculate the feature vector
       calculate_feature_vector
@@ -67,8 +68,12 @@ module Hercule
     # Class Methods
     #----------------------------------------------------------------------------
     class << self
-      def define_feature_dictionary
-        # TODO: FIX THIS  --  Fri Mar  2 13:49:29 2012
+      def register_domain( document_domain )
+        @@document_domains[document_domain.id] = document_domain
+      end
+
+      def find_domain( domain_id )
+        @@document_domains[domain_id]
       end
     end
 

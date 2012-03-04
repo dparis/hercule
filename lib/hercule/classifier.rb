@@ -29,7 +29,8 @@ module Hercule
     #----------------------------------------------------------------------------
     # Delegated Methods
     #----------------------------------------------------------------------------
-    def_delegators :@target, :train, :trained?, :classify
+    def_delegators :@target, :train, :trained?, :classify,
+                             :persist, :persist!, :load, :load!
 
     #
     # train -    Train the model associated with this classifier using the
@@ -49,8 +50,14 @@ module Hercule
     #            subsequent instances can be loaded without having to
     #            retrain
     #
+    # persist! - Same as persist method, but raises exceptions on
+    #            persist failure
+    #
     # load -     Load the classification engine from its persisted
     #            state
+    #
+    # load! -    Same as load method, but raises exceptions on load
+    #            failure
     #
 
     # Below are the intended method signatures and return values, if any
@@ -65,11 +72,11 @@ module Hercule
     #   return [document, probability_values]
     # end
     
-    # def persist( options = {} )
+    # def persist( options )
     #   file_name = options[:file_name], ..., etc
     # end
 
-    # def load( options = {} )
+    # def load( options )
     #   file_name = options[:file_name], ..., etc
 
     #   return successfully_loaded_boolean
