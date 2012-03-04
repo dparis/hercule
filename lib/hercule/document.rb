@@ -45,6 +45,9 @@ module Hercule
         @feature_list = features
       end
 
+      # Register the specified domain
+      Document.register_domain( @domain_id )
+
       # Add self to document cache if the current domain is not locked
       # and label is specified
       cache_document if current_domain && !current_domain.locked? && @label
@@ -69,7 +72,17 @@ module Hercule
     #----------------------------------------------------------------------------
     class << self
       def register_domain( document_domain )
-        @@document_domains[document_domain.id] = document_domain
+        if document_domain.is_a?( Domain )
+          # A Domain instance was passed, register it indexed by the
+          # domain id
+          @@document_domains[document_domain.id] = document_domain
+        else
+          # An identifier was passed, so create a new domain with
+          # the specified id unless it has already been registered
+          unless @@document_domains.has_key?( document_domain )
+            @@document_domains[document_domain] = Domain.new
+          end
+        end
       end
 
       def find_domain( domain_id )
