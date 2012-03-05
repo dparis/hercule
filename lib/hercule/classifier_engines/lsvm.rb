@@ -96,7 +96,7 @@ module Hercule
 
           # Map the class ids to the known labels in the document domain
           raw_probabilities.each do |id, prob|
-            probabilitiy[labels[id]] = prob
+            probabilities[labels[id]] = prob
           end          
         else
           label_id = @svm_model.predict( document.feature_vector )
