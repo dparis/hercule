@@ -88,17 +88,23 @@ module Hercule
         # predict probabilities, otherwise just get a label prediction
         probabilities = {}
         label_id = nil
+        labels = @trained_document_domain.labels
 
         # TODO: Figure out if there's a way to get this flag off the model  --  Sun Mar  4 20:38:21 2012
         if @svm_parameters.probability == 1
-          label_id, probabilities = @svm_model.predict_probability( document.feature_vector )
+          label_id, raw_probabilities = @svm_model.predict_probability( document.feature_vector )
+
+          # Map the class ids to the known labels in the document domain
+          raw_probabilities.each do |id, prob|
+            probabilitiy[labels[id]] = prob
+          end          
         else
           label_id = @svm_model.predict( document.feature_vector )
         end
 
         # Set the document's label to the value associated with the
         # predicted label id
-        document.label = @trained_document_domain.labels.key( label_id )
+        document.label = labels.key( label_id )
 
         # Return the newly labeled document and an empty hash as a
         # placeholder for the probability data
