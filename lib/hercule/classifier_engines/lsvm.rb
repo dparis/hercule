@@ -96,7 +96,11 @@ module Hercule
 
           # Map the class ids to the known labels in the document domain
           raw_probabilities.each do |id, prob|
-            probabilities[labels[id]] = prob
+            # TODO: Kind of bad, should probably refactor the
+            # doman.labels code  --  Sun Mar  4 21:47:42 2012
+            label = labels.key(id)
+
+            probabilities[label] = prob
           end          
         else
           label_id = @svm_model.predict( document.feature_vector )
@@ -104,6 +108,8 @@ module Hercule
 
         # Set the document's label to the value associated with the
         # predicted label id
+        # TODO: Kind of bad, should probably refactor the
+        # doman.labels code  --  Sun Mar  4 21:47:42 2012
         document.label = labels.key( label_id )
 
         # Return the newly labeled document and an empty hash as a
