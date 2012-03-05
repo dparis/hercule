@@ -30,9 +30,10 @@ module Hercule
         # following links:
         # * http://www.csie.ntu.edu.tw/~cjlin/libsvm/
         # * https://github.com/tomz/libsvm-ruby-swig/blob/master/libsvm-3.1/ruby/README
-        @svm_parameters.C          = options[:svm_c] || 10
-        @svm_parameters.eps        = options[:svm_eps] || 0.001
-        @svm_parameters.cache_size = options[:svm_cache_size] || 1 # In megabytes
+        @svm_parameters.C           = options[:svm_c] || 10
+        @svm_parameters.eps         = options[:svm_eps] || 0.001
+        @svm_parameters.cache_size  = options[:svm_cache_size] || 1 # In megabytes
+        @svm_parameters.probability = options[:svm_calc_probabilities] || 1
       end
 
       def train( document_domain )
@@ -83,7 +84,17 @@ module Hercule
           raise "Must train classifier before attempting to classify document"
         end
 
-        label_id = @svm_model.predict( document.feature_vector )
+        # If the model was configured to calculate probabilities,
+        # predict probabilities, otherwise just get a label prediction
+        probabilities = {}
+        label_id = nil
+
+        # TODO: Figure out if there's a way to get this flag off the model  --  Sun Mar  4 20:38:21 2012
+        if @svm_parameters.probability == 1
+          label_id, probabilities = @svm_model.predict_probability( document.feature_vector )
+        else
+          label_id = @svm_model.predict( document.feature_vector )
+        end
 
         # Set the document's label to the value associated with the
         # predicted label id
@@ -91,7 +102,7 @@ module Hercule
 
         # Return the newly labeled document and an empty hash as a
         # placeholder for the probability data
-        return [document, {}]
+        return [document, probabilities]
       end
 
       def persist( options )
