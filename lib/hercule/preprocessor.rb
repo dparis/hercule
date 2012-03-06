@@ -13,29 +13,39 @@ module Hercule
     # Instance Methods
     #----------------------------------------------------------------------------
     def initialize( options = {} )
+      # Insert default values into options hash
+      options = {
+        :min_token_length => 3,
+        :stem_words => true,
+        :strip_symbols => true,
+        :strip_numerals => true,
+        :strip_stop_words => true,
+        :stop_words => DEFAULT_STOP_WORDS
+      }.merge( options )
+
       # Default minimum token length to 3
-      @min_token_length = options[:min_token_length] || 3
+      @min_token_length = options[:min_token_length]
 
       # Stem words by default
-      @stem_words = options[:stem_words] || true
+      @stem_words = options[:stem_words]
 
       # Strip symbols by default
-      @strip_symbols = options[:strip_symbols] || true
+      @strip_symbols = options[:strip_symbols]
 
       # Strip numerals by default
-      @strip_numerals = options[:strip_numerals] || true
+      @strip_numerals = options[:strip_numerals]
 
       # Strip stop words by default
-      @strip_stop_words = options[:strip_stop_words] || true
+      @strip_stop_words = options[:strip_stop_words]
 
       # Override the stop word array if specified
-      @stop_words = options[:stop_words] || DEFAULT_STOP_WORDS
+      @stop_words = options[:stop_words]
     end
 
     def preprocess( text )
       # Strip symbols and numerals if configured to do so
-      text.gsub!( /[^[:alnum:]|[:space:]]/, '' ) if @strip_symbols
-      text.gsub!( /[[:digit:]]/, '' ) if @strip_numerals
+      text = text.gsub( /[^[:alnum:]|[:space:]]/, '' ) if @strip_symbols
+      text = text.gsub( /[[:digit:]]/, '' ) if @strip_numerals
 
       # Tokenize text and downcase each
       tokens = GTokenizer.parse( text )
@@ -57,12 +67,14 @@ module Hercule
     #----------------------------------------------------------------------------
     # Class Methods
     #----------------------------------------------------------------------------
-    def tokenize( text )
-      GTokenizer.parse( text )
-    end
+    class << self
+      def tokenize( text )
+        GTokenizer.parse( text )
+      end
 
-    def stem( word )
-      word.stem
+      def stem( word )
+        word.stem
+      end
     end
 
     #----------------------------------------------------------------------------

@@ -92,6 +92,30 @@ describe 'Hercule' do
     end
 
     context 'initialization' do
+      context 'default values' do
+        it 'should be nil for label' do
+          new_doc = Hercule::Document.new( @feature_string )
+          new_doc.label.should == nil
+        end
+
+        it 'should be an empty hash for metadata' do
+          new_doc = Hercule::Document.new( @feature_string )
+          new_doc.metadata.should == {}
+        end
+
+        it 'should be a UUID for the id' do
+          new_doc = Hercule::Document.new( @feature_string )
+          # The id field should be a lowercase, hyphenated text
+          # representation of a UUID
+          new_doc.id.should match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/)
+        end
+        
+        it 'should associate the document with the domain indexed by the DEFAULT_DOMAIN_ID constant' do
+          new_doc = Hercule::Document.new( @feature_string )
+          new_doc.current_domain.id.should == Hercule::Document::DEFAULT_DOMAIN_ID
+        end
+      end
+
       it 'should accept features as a string' do
         new_doc = Hercule::Document.new( @feature_string )
         new_doc.should be_a( Hercule::Document )

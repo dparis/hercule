@@ -22,14 +22,21 @@ module Hercule
     # Instance Methods
     #----------------------------------------------------------------------------
     def initialize( features, options = {} )
+      # Insert default values into options hash
+      options = {
+        :label => nil,
+        :domain_id => DEFAULT_DOMAIN_ID,
+        :id => UUID.new.generate,
+        :metadata => {}
+      }.merge( options )
+
       # Set up default values
-      @label = options[:label] || nil # Used as the classification in Classifier
       @feature_vector = []
 
-      @domain_id = options[:domain_id] || DEFAULT_DOMAIN_ID
-      @id = options[:id] || UUID.new.generate
-
-      @metadata = options[:metadata] || nil
+      @label       = options[:label]
+      @domain_id   = options[:domain_id]
+      @id          = options[:id]
+      @metadata    = options[:metadata]
 
       # Handle a string or a feature array
       if features.is_a?( String )
