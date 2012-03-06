@@ -18,6 +18,8 @@ module Hercule
         # Use a custom classifier engine, any type of object can be
         # used so long as it responds to the delegated methods
         @target = options[:custom]
+      else
+        raise ArgumentError, "Must specify a valid ClassifierEngine type"
       end
     end
 

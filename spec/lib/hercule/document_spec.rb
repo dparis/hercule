@@ -130,7 +130,7 @@ describe 'Hercule' do
       
       it 'should raise an exception if invalid features are passed' do
         [nil, 123, {}, [1,'2',3,'4'], :feature_symbol].each do |invalid_features|
-          expect{Hercule::Document.new( invalid_features )}.to raise_error(ArgumentError)
+          expect{ Hercule::Document.new( invalid_features ) }.to raise_error(ArgumentError)
         end
       end
 
