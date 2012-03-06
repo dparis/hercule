@@ -39,10 +39,19 @@ module Hercule
         p = Hercule::Preprocessor.new
         @feature_list = p.preprocess( @raw_text )
       elsif features.is_a?( Array )
+        # Ensure that every element is a string
+        features.each_with_index do |feature, index|
+          unless feature.is_a?( String )
+            raise ArgumentError, "Feature array passed contains an invalid element: '#{feature}' at position #{index}"
+          end
+        end
+
         # Assume the feature array is already preprocessed, so
         # approximate the raw text and stash the array
         @raw_text = features.join( ' ' )
         @feature_list = features
+      else
+        raise ArgumentError, "Could not determine valid feature set from method argument: #{features}"
       end
 
       # Register the specified domain
@@ -72,20 +81,46 @@ module Hercule
     #----------------------------------------------------------------------------
     class << self
       def register_domain( document_domain )
+        registered_domain = false
+        
         if document_domain.is_a?( Domain )
           # A Domain instance was passed, register it indexed by the
           # domain id
           @@document_domains[document_domain.id] = document_domain
+          registered_domain = document_domain
         else
           # An identifier was passed, so create a new domain with
           # the specified id unless it has already been registered
           domain_id = document_domain.to_sym
           unless @@document_domains.has_key?( domain_id )
-            @@document_domains[domain_id] = Domain.new( domain_id )
+            registered_domain = Domain.new( domain_id )
+            @@document_domains[domain_id] = registered_domain
           end
         end
+
+        return registered_domain
       end
 
+      def deregister_domain( document_domain )
+        deregistered_domain = false
+        domain_id = nil
+
+        # Get the domain id from the parameter
+        if document_domain.is_a?( Domain )
+          domain_id = document_domain.id
+        else
+          domain_id = document_domain.to_sym
+        end
+
+        # Deregister domain if the id can be found
+        if @@document_domains.has_key?( domain_id )
+          @@document_domains.delete( domain_id )
+          deregistered_domain = true
+        end
+
+        return deregistered_domain
+      end
+      
       def find_domain( domain_id )
         @@document_domains[domain_id]
       end

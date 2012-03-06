@@ -1,4 +1,5 @@
 require 'gtokenizer'
+require 'fast_stemmer'
 
 module Hercule
   class Preprocessor
