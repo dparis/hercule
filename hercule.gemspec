@@ -24,4 +24,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency "libsvm-ruby-swig", "~> 0.4.0"
 
   s.add_development_dependency "rspec", "~> 2.8.0"
+  s.add_development_dependency "annotations", "~> 0.1.0"
 end
