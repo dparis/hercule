@@ -49,6 +49,11 @@ describe Hercule::ClassifierEngines::LSVM do
   end
 
   context 'train method' do
+    it 'should raise a HerculeClassifierError exception if the document domain has no documents' do
+      empty_domain = Hercule::Document::Domain.new( :empty_domain )
+      expect{ @lsvm_c.train( empty_domain ) }.to raise_exception(Hercule::ClassifierError)
+    end
+
     it 'should mark the classifier as trained' do
       @lsvm_c.train( @doc_domain )
       @lsvm_c.should be_trained
@@ -72,9 +77,9 @@ describe Hercule::ClassifierEngines::LSVM do
   end
 
   context 'classify method' do
-    it 'should raise an exception if classifier is not trained' do
+    it 'should raise a Hercule::ClassifierError exception if classifier is not trained' do
       @lsvm_c.should_not be_trained
-      expect{ @lsvm_c.classify( @doc ) }.to raise_exception(RuntimeError)
+      expect{ @lsvm_c.classify( @doc ) }.to raise_exception(Hercule::ClassifierError)
     end
 
     # TODO: Spec to check for reasonable results  --  Fri Mar 23 19:36:01 2012
@@ -83,8 +88,7 @@ describe Hercule::ClassifierEngines::LSVM do
   context 'persist! method' do
     it 'should raise an exception if classifier is not trained' do
       @lsvm_c.should_not be_trained
-      # TODO: Handle custom exception when it's implemented  --  Fri Mar 23 19:44:10 2012
-      expect{ @lsvm_c.persist( :file => 'test' ) }.to raise_exception(RuntimeError)
+      expect{ @lsvm_c.persist!( :file => 'test' ) }.to raise_exception(Hercule::ClassifierError)
     end
 
     context 'when a file is specified' do
@@ -106,11 +110,13 @@ describe Hercule::ClassifierEngines::LSVM do
 
       context 'when the filename and path is not valid' do
         it 'should raise an exception' do
-          expect{ @lsvm_c.persist!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception(Errno::ENOENT)
+          expect{ @lsvm_c.persist!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception(Hercule::ClassifierError)
         end
       end
     end
   end
+
+  # TODO: Spec persist() method  --  Sun Mar 25 11:57:52 2012
 
   context 'load! method' do
     before(:each) do
@@ -149,11 +155,13 @@ describe Hercule::ClassifierEngines::LSVM do
 
       context 'when the filename and path are not valid' do
         it 'should raise an exception' do
-          expect{ @new_lsvm_c.load!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception(Errno::ENOENT)
+          expect{ @new_lsvm_c.load!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception(Hercule::ClassifierError)
         end
       end
     end
   end
+
+  # TODO: Spec load() method  --  Sun Mar 25 11:58:08 2012
 
   after(:each) do
     Hercule::Document.deregister_domain( @doc_domain )

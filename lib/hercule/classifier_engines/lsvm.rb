@@ -57,8 +57,7 @@ module Hercule
         # if for some reason the number of label entries and examples
         # don't match
         if labels.count == 0 || examples.count == 0 || (labels.count != examples.count)
-          # TODO: Create custom exception class  --  Sat Mar  3 14:04:53 2012
-          raise "Invalid amount of labels or examples: #{labels.count}/#{examples.count}"
+          raise Hercule::ClassifierError, "Invalid amount of labels or examples: #{labels.count}/#{examples.count}"
         end
 
         # Create a new SVM problem based on the labels and associated
@@ -79,9 +78,8 @@ module Hercule
       def classify( document )
         # Ensure that the classifer has been trained before attempting
         # to classify the document
-        # TODO: Define custom exception type  --  Fri Mar  2 17:10:53 2012
         unless trained?
-          raise "Must train classifier before attempting to classify document"
+          raise Hercule::ClassifierError, "Must train classifier before attempting to classify document"
         end
 
         # If the model was configured to calculate probabilities,
@@ -118,16 +116,23 @@ module Hercule
       end
 
       def persist( options )
-        # TODO: Wrap this in begin/rescue appropriately  --  Sat Mar  3 15:28:27 2012
-        persist!( options )
+        persist_status = false
+        
+        begin
+          persist_status = persist!( options )
+        rescue Hercule::ClassifierError
+        end
+
+        return persist_status
       end
 
       def persist!( options )
+        persist_status = false
+
         # Ensure that there's a trained model before attempting to
         # persist it
-        # TODO: Define custom exception class  --  Sat Mar  3 13:25:21 2012
         unless trained?
-          raise "Must train classifier before attempting to persist classification model"
+          raise Hercule::ClassifierError, "Must train classifier before attempting to persist classification model"
         end
         
         if options[:file]
@@ -143,14 +148,30 @@ module Hercule
             file_name = [@trained_document_domain.id, Time.now.to_i].join( '_' )
           end
 
-          # Persist the trained document domain
-          File.open( file_name + '.dd', 'w' ) do |dd_file|
-            Marshal.dump( @trained_document_domain, dd_file )
+          begin
+            # Persist the trained document domain
+            File.open( file_name + '.dd', 'w' ) do |dd_file|
+              Marshal.dump( @trained_document_domain, dd_file )
+            end
+            
+            # Persist the trained LibSVM model
+            if @svm_model.save( file_name + '.svm' ) == -1
+              raise Hercule::ClassifierError, "Could not save LibSVM model to file: #{file_name}.svm"
+            end
+          rescue Errno::ENOENT
+            # Raised by File.open if the file doesn't exist
+            raise Hercule::ClassifierError, "File could not be created: #{file_name}.dd"
+          rescue Hercule::ClassifierError => e
+            raise e
           end
           
-          # Persist the trained LibSVM model
-          @svm_model.save( file_name + '.svm' )
+          # Classifier was persisted successfully, so update the
+          # persist status
+          persist_status = true
         end
+
+        # Return the persist status
+        return persist_status
       end
 
       def load( options )
@@ -158,21 +179,7 @@ module Hercule
         
         begin
           load_status = load!( options )
-        rescue TypeError => e
-          # Marshal.load raises a type error if IO object is invalid,
-          # or the mashaled data is incompatible/invalid, so ignore
-          # those cases, otherwise raise the TypeError
-          unless e.message =~ /^(instance of|incompatible marshal)/
-            raise e
-          end
-        rescue Errno::ENOENT
-          # Raised by File.open if the file doesn't exist
-        rescue RuntimeError
-          # If the svm file does not exist, this exception will be raised
-          # TODO: This needs to be changed to a custom exception class  --  Sat Mar  3 15:23:39 2012
-          unless e.message =~ /^LibSVM file not found/
-            raise e
-          end
+        rescue Hercule::ClassifierError
         end
 
         return load_status
@@ -187,24 +194,39 @@ module Hercule
           # Begin loading process
           load_status = false
 
-          # Load the document domain
-          File.open( file_name + '.dd', 'r' ) do |file|
-            @trained_document_domain = Marshal.load( file )
+          begin
+            # Load the document domain
+            File.open( file_name + '.dd', 'r' ) do |file|
+              @trained_document_domain = Marshal.load( file )
+            end
+
+            # Check that the LibSVM file exists before trying to load
+            # it in order to prevent a segfault in the ruby runtime;
+            # raise an exception if file not found
+            unless File.exists?( file_name + '.svm' )
+              raise Hercule::ClassifierError, "LibSVM file not found: #{file_name + '.svm'}"
+            end
+
+            # Load the trained LibSVM model
+            # NOTE:  Be *very* careful here, libsvm may segfault if
+            #        it tries to load an invalid file
+            @svm_model = Model.new( file_name + '.svm' )
+          rescue TypeError => e
+            # Marshal.load raises a type error if IO object is invalid,
+            # or the mashaled data is incompatible/invalid, so ignore
+            # those cases, otherwise raise the TypeError
+            if e.message =~ /^(instance of|incompatible marshal)/
+              raise Hercule::ClassifierError, 'Marshalled domain invalid'
+            else
+              raise e
+            end
+          rescue Errno::ENOENT
+            # Raised by File.open if the file doesn't exist
+            raise Hercule::ClassifierError, "File not found: #{file_name}.dd"
+          rescue Hercule::ClassifierError => e
+            raise e
           end
-
-          # Check that the LibSVM file exists before trying to load
-          # it in order to prevent a segfault in the ruby runtime;
-          # raise an exception if file not found
-          unless File.exists?( file_name + '.svm' )
-            # TODO: Create custom exception class  --  Sat Mar  3 15:23:22 2012
-            raise "LibSVM file not found: #{file_name + '.svm'}"
-          end
-
-          # Load the trained LibSVM model
-          # NOTE:  Be *very* careful here, libsvm may segfault if
-          #        it tries to load an invalid file
-          @svm_model = Model.new( file_name + '.svm' )
-
+          
           # Register the trained document domain
           Hercule::Document.register_domain( @trained_document_domain )
 
@@ -213,10 +235,10 @@ module Hercule
 
           # Loading was successful, so update the load status
           load_status = true
-
-          # Return the load status
-          return load_status
         end
+
+        # Return the load status
+        return load_status
       end
     end
   end
