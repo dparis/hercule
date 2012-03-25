@@ -1,3 +1,5 @@
+# OPTIMIZE: Refactor load/persist method specs into shared examples  --  Sun Mar 25 14:40:26 2012
+
 shared_examples 'classifier engine' do |classifier_init_options|
   include_context 'delegate_interface'
 

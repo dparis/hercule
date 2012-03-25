@@ -85,6 +85,7 @@ describe Hercule::ClassifierEngines::LSVM do
     # TODO: Spec to check for reasonable results  --  Fri Mar 23 19:36:01 2012
   end
 
+  # OPTIMIZE: Refactor load/persist method specs into shared examples  --  Sun Mar 25 14:40:26 2012
   context 'persist! method' do
     it 'should raise an exception if classifier is not trained' do
       @lsvm_c.should_not be_trained
@@ -116,7 +117,37 @@ describe Hercule::ClassifierEngines::LSVM do
     end
   end
 
-  # TODO: Spec persist() method  --  Sun Mar 25 11:57:52 2012
+  context 'persist method' do
+    context 'when persist! method returns a Hercule::ClassifierEngines exception' do
+      before(:each) do
+        @lsvm_c.stub( :persist! ).and_raise( Hercule::ClassifierError )
+      end
+
+      it 'should return false' do
+        @lsvm_c.persist( :file => 'invalid_path/invalid_filename' ).should be_false
+      end
+    end
+
+    context 'when persist! method returns an unexpected, unrelated exception' do
+      before(:each) do
+        @lsvm_c.stub( :persist! ).and_raise( Exception )
+      end
+
+      it 'should raise the unhandled exception' do
+        expect{ @lsvm_c.persist( :file => 'invalid_path/invalid_filename' ) }.to raise_exception
+      end
+    end
+
+    context 'when persist! method returns normally' do
+      it 'should return the status of the persist attempt' do
+        @lsvm_c.stub( :persist! ).and_return( true )
+        @lsvm_c.persist( :file => 'spec/support/temp.svm' ).should be_true
+
+        @lsvm_c.stub( :persist! ).and_return( false )
+        @lsvm_c.persist( :file => 'invalid_path/invalid_filename' ).should be_false
+      end
+    end
+  end
 
   context 'load! method' do
     before(:each) do
@@ -161,7 +192,37 @@ describe Hercule::ClassifierEngines::LSVM do
     end
   end
 
-  # TODO: Spec load() method  --  Sun Mar 25 11:58:08 2012
+  context 'load method' do
+    context 'when load! method returns a Hercule::ClassifierEngines exception' do
+      before(:each) do
+        @lsvm_c.stub( :load! ).and_raise( Hercule::ClassifierError )
+      end
+
+      it 'should return false' do
+        @lsvm_c.load( :file => 'invalid_path/invalid_filename' ).should be_false
+      end
+    end
+
+    context 'when load! method returns an unexpected, unrelated exception' do
+      before(:each) do
+        @lsvm_c.stub( :load! ).and_raise( Exception )
+      end
+
+      it 'should raise the unhandled exception' do
+        expect{ @lsvm_c.load( :file => 'invalid_path/invalid_filename' ) }.to raise_exception
+      end
+    end
+
+    context 'when load! method returns normally' do
+      it 'should return the status of the load attempt' do
+        @lsvm_c.stub( :load! ).and_return( true )
+        @lsvm_c.load( :file => 'spec/support/temp.svm' ).should be_true
+
+        @lsvm_c.stub( :load! ).and_return( false )
+        @lsvm_c.load( :file => 'invalid_path/invalid_filename' ).should be_false
+      end
+    end
+  end
 
   after(:each) do
     Hercule::Document.deregister_domain( @doc_domain )

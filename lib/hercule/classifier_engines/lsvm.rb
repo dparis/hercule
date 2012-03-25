@@ -88,13 +88,16 @@ module Hercule
         label_id = nil
         labels = @trained_document_domain.labels
 
-        # TODO: Figure out if there's a way to get this flag off the model  --  Sun Mar  4 20:38:21 2012
-        if @svm_parameters.probability == 1
+        # OPTIMIZE: libsvm-ruby-swig needs to be patched to make the
+        # svm_check_probability_model method directly available through the
+        # Model class interface
+        probability_enabled = ( @svm_model.instance_variable_get( :@probability ) == 1 ? true : false )
+        if probability_enabled
           label_id, raw_probabilities = @svm_model.predict_probability( document.feature_vector )
 
           # Map the class ids to the known labels in the document domain
           raw_probabilities.each do |id, prob|
-            # TODO: Kind of bad, should probably refactor the
+            # OPTIMIZE: Kind of bad, should probably refactor the
             # domain.labels code  --  Sun Mar  4 21:47:42 2012
             label = labels.key(id)
 
@@ -106,7 +109,7 @@ module Hercule
 
         # Set the document's label to the value associated with the
         # predicted label id
-        # TODO: Kind of bad, should probably refactor the
+        # OPTIMIZE: Kind of bad, should probably refactor the
         # domain.labels code  --  Sun Mar  4 21:47:42 2012
         document.label = labels.key( label_id )
 
