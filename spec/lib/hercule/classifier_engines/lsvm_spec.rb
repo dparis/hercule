@@ -16,7 +16,7 @@ describe Hercule::ClassifierEngines::LSVM do
     it 'should set up LibSVM default parameters' do
       lsvm_classifier = Hercule::ClassifierEngines::LSVM.new
 
-      lsvm_classifier.svm_parameters.should be_a(Parameter)
+      lsvm_classifier.svm_parameters.should be_a( Parameter )
       svmp = lsvm_classifier.svm_parameters
 
       svmp.C.should == 10
@@ -51,7 +51,7 @@ describe Hercule::ClassifierEngines::LSVM do
   context 'train method' do
     it 'should raise a HerculeClassifierError exception if the document domain has no documents' do
       empty_domain = Hercule::Document::Domain.new( :empty_domain )
-      expect{ @lsvm_c.train( empty_domain ) }.to raise_exception(Hercule::ClassifierError)
+      expect{ @lsvm_c.train( empty_domain ) }.to raise_exception( Hercule::ClassifierError )
     end
 
     it 'should mark the classifier as trained' do
@@ -79,17 +79,20 @@ describe Hercule::ClassifierEngines::LSVM do
   context 'classify method' do
     it 'should raise a Hercule::ClassifierError exception if classifier is not trained' do
       @lsvm_c.should_not be_trained
-      expect{ @lsvm_c.classify( @doc ) }.to raise_exception(Hercule::ClassifierError)
+      expect{ @lsvm_c.classify( @doc ) }.to raise_exception( Hercule::ClassifierError )
     end
 
     # TODO: Spec to check for reasonable results  --  Fri Mar 23 19:36:01 2012
   end
 
-  # OPTIMIZE: Refactor load/persist method specs into shared examples  --  Sun Mar 25 14:40:26 2012
   context 'persist! method' do
-    it 'should raise an exception if classifier is not trained' do
+    it 'should raise a Hercule::ClassifierError exception if classifier is not trained' do
       @lsvm_c.should_not be_trained
-      expect{ @lsvm_c.persist!( :file => 'test' ) }.to raise_exception(Hercule::ClassifierError)
+      expect{ @lsvm_c.persist!( :file => 'test' ) }.to raise_exception( Hercule::ClassifierError )
+    end
+
+    it 'should raise a Hercule::ClassifierError exception if no valid persistence method is specified' do
+      expect{ @lsvm_c.persist!( :invalid_persistence_method => nil ) }.to raise_exception( Hercule::ClassifierError )
     end
 
     context 'when a file is specified' do
@@ -107,16 +110,68 @@ describe Hercule::ClassifierEngines::LSVM do
           File.delete( 'spec/support/temp.dd' )
           File.delete( 'spec/support/temp.svm' )
         end
+
+        it 'should return the path and basename of the files saved' do
+          returned_name = @lsvm_c.persist!( :file => 'spec/support/temp' )
+          returned_name.should == 'spec/support/temp'
+
+          # Clean up temp files
+          File.delete( 'spec/support/temp.dd' )
+          File.delete( 'spec/support/temp.svm' )
+        end          
       end
 
       context 'when the filename and path is not valid' do
         it 'should raise an exception' do
-          expect{ @lsvm_c.persist!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception(Hercule::ClassifierError)
+          expect{ @lsvm_c.persist!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception( Hercule::ClassifierError )
         end
+      end
+    end
+
+    context 'when GridFS is specified' do
+      before(:each) do
+        @lsvm_c.train( @doc_domain )
+
+        @gridfs_filename = 'lsvm_classifier_test'
+        @gridfs_db_name = 'hercule_lsvm_classifiers_test'
+        
+        @mongo_connection = Mongo::Connection.new
+
+        @grid_fs = Mongo::GridFileSystem.new( @mongo_connection.db( @gridfs_db_name ) )
+        @grid_fs.delete( @gridfs_filename )
+      end
+
+      it 'should raise a Hercule::ClassifierError if a valid MongoDB connection object is not passed' do
+        expect{ @lsvm_c.persist!( :gridfs => nil ) }.to raise_exception( Hercule::ClassifierError )
+        expect{ @lsvm_c.persist!( :gridfs => 'not_a_mongodb_connection' ) }.to raise_exception( Hercule::ClassifierError )
+      end
+
+      context 'when the filename is specified and valid' do
+        it 'should save the LibSVM model and document domain to the specified MongoDB using GridFS' do
+          @lsvm_c.persist!( :gridfs => @mongo_connection,
+                            :gridfs_filename => @gridfs_filename,
+                            :gridfs_db_name => @gridfs_db_name )
+
+          @grid_fs.open( @gridfs_filename + '.dd', 'r' ).should be_a( Mongo::GridIO )
+          @grid_fs.open( @gridfs_filename + '.svm', 'r' ).should be_a( Mongo::GridIO )
+        end
+
+        it 'should return the basename of the GridFS files saved' do
+          returned_name = @lsvm_c.persist!( :gridfs => @mongo_connection,
+                                            :gridfs_filename => @gridfs_filename,
+                                            :gridfs_db_name => @gridfs_db_name )
+
+          returned_name.should == @gridfs_filename
+        end
+      end
+
+      after(:each) do
+        @mongo_connection.drop_database( @gridfs_db_name )
       end
     end
   end
 
+  # OPTIMIZE: Refactor load/persist method specs into shared examples  --  Sun Mar 25 14:40:26 2012
   context 'persist method' do
     context 'when persist! method returns a Hercule::ClassifierEngines exception' do
       before(:each) do
@@ -186,12 +241,13 @@ describe Hercule::ClassifierEngines::LSVM do
 
       context 'when the filename and path are not valid' do
         it 'should raise an exception' do
-          expect{ @new_lsvm_c.load!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception(Hercule::ClassifierError)
+          expect{ @new_lsvm_c.load!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception( Hercule::ClassifierError )
         end
       end
     end
   end
 
+  # OPTIMIZE: Refactor load/persist method specs into shared examples  --  Sun Mar 25 14:40:26 2012
   context 'load method' do
     context 'when load! method returns a Hercule::ClassifierEngines exception' do
       before(:each) do

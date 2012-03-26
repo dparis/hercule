@@ -1,4 +1,6 @@
 require 'svm'
+require 'mongo' # OPTIMIZE: Make mongo optional requirement?  --  Sun Mar 25 15:12:58 2012
+require 'tempfile'
 
 require_relative 'base'
 
@@ -10,6 +12,11 @@ module Hercule
       #----------------------------------------------------------------------------
       # NOTE:  SVM ATTRIBUTES ONLY FOR TESTING
       attr_reader :svm_model, :svm_problem, :svm_parameters
+
+      #----------------------------------------------------------------------------
+      # Class Constants
+      #----------------------------------------------------------------------------
+      DEFAULT_MONGODB_NAME = 'hercule_lsvm_classifiers'      
 
       #----------------------------------------------------------------------------
       # Instance Methods
@@ -170,7 +177,68 @@ module Hercule
           
           # Classifier was persisted successfully, so update the
           # persist status
-          persist_status = true
+          persist_status = file_name
+        elsif options[:gridfs]
+          # Persist to a GridFS store
+          mongo_connection = options[:gridfs]
+
+          # Ensure that the object passed is a valid mongo db
+          # connection object
+          unless mongo_connection.is_a?( Mongo::Connection )
+            raise Hercule::ClassifierError, 'Must pass a valid Mongo::Connection instance if :gridfs is specified'
+          end
+
+          # Open a connection to the underlying mongo database based
+          # on either the specified db name or the default mongodb
+          # name defined by the class constant
+          db_name = options[:gridfs_db_name] || DEFAULT_MONGODB_NAME
+          grid_fs = Mongo::GridFileSystem.new( mongo_connection.db( db_name ) )
+
+          # Process the filename if specified, or derive one from the
+          # document domain
+          file_name = ''
+          if options[:gridfs_filename].is_a?( String )
+            # Strip any suffix if specified
+            path, file_name = File.split( options[:gridfs_filename] )
+            file_name = File.basename( file_name, '.*' )
+          else
+            file_name = [@trained_document_domain.id].join( '_' )
+          end
+
+          # Persist the trained document domain
+          marshalled_domain = Marshal.dump( @trained_document_domain )
+          grid_fs.open( file_name + '.dd', 'w', :safe => true ) do |file|
+            file.write( marshalled_domain )
+          end
+
+          # Persist the trained LibSVM model
+          # OPTIMIZE: This is clunky, maybe find a better way to get LibSVM
+          # to save model data  --  Sun Mar 25 17:38:41 2012
+          begin
+            temp_file = Tempfile.new( file_name )
+            temp_file.close
+
+            # Save the LibSVM model data to the tempfile
+            if @svm_model.save( temp_file.path ) == -1
+              raise Hercule::ClassifierError, "Could not save LibSVM model to file: #{temp_file}.svm"
+            end
+
+            # Re-open the tempfile and write the data to GridFS
+            temp_file.open
+            temp_file.rewind
+            
+            grid_fs.open( file_name + '.svm', 'w' ) do |file|
+              file.write( temp_file.read )
+            end
+          ensure
+            temp_file.close
+            temp_file.unlink
+          end
+
+          # Set the persist status
+          persist_status = file_name
+        else
+          raise Hercule::ClassifierError, 'Must specify a valid persistence mechanism' 
         end
 
         # Return the persist status
