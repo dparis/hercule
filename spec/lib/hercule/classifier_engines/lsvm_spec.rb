@@ -223,6 +223,7 @@ describe Hercule::ClassifierEngines::LSVM do
           @new_lsvm_c.load!( :file => 'spec/support/temp' )
           
           registered_domain = Hercule::Document.find_domain( @doc_domain.id )
+          registered_domain.should be_a( Hercule::Document::Domain )
           registered_domain.id.should == @doc_domain.id
         end
 
@@ -242,6 +243,67 @@ describe Hercule::ClassifierEngines::LSVM do
       context 'when the filename and path are not valid' do
         it 'should raise an exception' do
           expect{ @new_lsvm_c.load!( :file => 'invalid_path/invalid_filename' ) }.to raise_exception( Hercule::ClassifierError )
+        end
+      end
+    end
+
+    context 'when GridFS is specified' do
+      before(:each) do
+        @mongo_connection = Mongo::Connection.new
+      end
+
+      context 'when the filename and database name are valid' do
+        before(:each) do
+          Hercule::Document.deregister_domain( @doc_domain )
+          Hercule::Document.find_domain( @doc_domain.id ).should be_nil
+
+          @gridfs_filename = 'lsvm_classifier_test'
+          @gridfs_db_name = 'hercule_lsvm_classifiers_test'
+          
+          @lsvm_c.train( @doc_domain )
+          @lsvm_c.persist!( :gridfs => @mongo_connection,
+                            :gridfs_filename => @gridfs_filename,
+                            :gridfs_db_name => @gridfs_db_name )
+
+          @grid_fs = Mongo::GridFileSystem.new( @mongo_connection.db( @gridfs_db_name ) )
+        end
+
+        it 'should register the loaded document domain' do
+          @new_lsvm_c.load!( :gridfs => @mongo_connection,
+                             :gridfs_filename => @gridfs_filename,
+                             :gridfs_db_name => @gridfs_db_name )
+          
+          registered_domain = Hercule::Document.find_domain( @doc_domain.id )
+          registered_domain.should be_a( Hercule::Document::Domain )
+          registered_domain.id.should == @doc_domain.id
+        end
+
+        it 'should load the LibSVM model' do
+          @new_lsvm_c.svm_model.should be_nil
+
+          @new_lsvm_c.load!( :gridfs => @mongo_connection,
+                             :gridfs_filename => @gridfs_filename,
+                             :gridfs_db_name => @gridfs_db_name )
+
+          @new_lsvm_c.svm_model.should be_a( Model )
+        end
+
+        after(:each) do
+          @mongo_connection.drop_database( @gridfs_db_name )
+        end
+      end
+
+      context 'when the filename or database name are not valid' do
+        it 'should raise an exception if the filename is invalid' do
+          expect{ @new_lsvm_c.load!( :gridfs => @mongo_connection,
+                                     :gridfs_filename => '',
+                                     :gridfs_db_name => 'valid_db_name'  ) }.to raise_exception( Hercule::ClassifierError )
+        end
+
+        it 'should raise an exception if the database name is invalid' do
+          expect{ @new_lsvm_c.load!( :gridfs => @mongo_connection,
+                                     :gridfs_filename => 'valid_filename',
+                                     :gridfs_db_name => ' invalid db name'  ) }.to raise_exception( Hercule::ClassifierError )
         end
       end
     end

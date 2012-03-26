@@ -27,4 +27,5 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency "rspec", "~> 2.8.0"
   s.add_development_dependency "annotations", "~> 0.1.0"
+  s.add_development_dependency "pry", "~> 0.9.8"
 end

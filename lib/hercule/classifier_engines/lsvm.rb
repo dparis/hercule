@@ -1,6 +1,7 @@
 require 'svm'
 require 'mongo' # OPTIMIZE: Make mongo optional requirement?  --  Sun Mar 25 15:12:58 2012
 require 'tempfile'
+require 'pry'
 
 require_relative 'base'
 
@@ -125,6 +126,7 @@ module Hercule
         return [document, probabilities]
       end
 
+      # OPTIMIZE: Refactor load/persist options hash format  --  Sun Mar 25 20:23:07 2012
       def persist( options )
         persist_status = false
         
@@ -199,13 +201,13 @@ module Hercule
           file_name = ''
           if options[:gridfs_filename].is_a?( String )
             # Strip any suffix if specified
-            path, file_name = File.split( options[:gridfs_filename] )
-            file_name = File.basename( file_name, '.*' )
+            file_name = File.basename( options[:gridfs_filename], '.*' )
           else
             file_name = [@trained_document_domain.id].join( '_' )
           end
 
           # Persist the trained document domain
+          # TODO: Add support for optionally deleting old versions  --  Sun Mar 25 20:30:14 2012
           marshalled_domain = Marshal.dump( @trained_document_domain )
           grid_fs.open( file_name + '.dd', 'w', :safe => true ) do |file|
             file.write( marshalled_domain )
@@ -257,13 +259,13 @@ module Hercule
       end
 
       def load!( options )
+        # Begin loading process
+        load_status = false
+
         if options[:file]
           # Get the basename of the path specified
           path, file_name = File.split( options[:file] )
           file_name = File.join( path, File.basename( file_name, '.*' ) )
-
-          # Begin loading process
-          load_status = false
 
           begin
             # Load the document domain
@@ -294,6 +296,83 @@ module Hercule
           rescue Errno::ENOENT
             # Raised by File.open if the file doesn't exist
             raise Hercule::ClassifierError, "File not found: #{file_name}.dd"
+          rescue Hercule::ClassifierError => e
+            raise e
+          end
+          
+          # Register the trained document domain
+          Hercule::Document.register_domain( @trained_document_domain )
+
+          # Indicate that the classifier is trained
+          @trained = true
+
+          # Loading was successful, so update the load status
+          load_status = true
+        elsif options[:gridfs]
+          # Load from a GridFS store
+          mongo_connection = options[:gridfs]
+
+          # Ensure that the object passed is a valid mongo db
+          # connection object
+          unless mongo_connection.is_a?( Mongo::Connection )
+            raise Hercule::ClassifierError, 'Must pass a valid Mongo::Connection instance if :gridfs is specified'
+          end
+
+          # Get the basename of the path specified
+          unless options[:gridfs_filename].is_a?( String )
+            raise Hercule::ClassifierError, 'Must pass :gridfs_filename when loading from GridFS'
+          end
+
+          file_name = File.basename( options[:gridfs_filename], '.*' )
+
+          begin
+            # Open a connection to the underlying mongo database based
+            # on either the specified db name or the default mongodb
+            # name defined by the class constant
+            db_name = options[:gridfs_db_name] || DEFAULT_MONGODB_NAME
+            grid_fs = Mongo::GridFileSystem.new( mongo_connection.db( db_name ) )
+
+            # Load the document domain
+            @trained_document_domain = Marshal.load( grid_fs.open( file_name + '.dd', 'r' ) { |file| file.read } )
+          
+            # Load the LibSVM model data from GridFS
+            model_data = grid_fs.open( file_name + '.svm', 'r' ) { |file| file.read }
+
+            # Check that the LibSVM file exists before trying to load
+            # it in order to prevent a segfault in the ruby runtime;
+            # raise an exception if file not found
+            unless model_data
+              raise Hercule::ClassifierError, "LibSVM file not found in specified database: #{file_name + '.svm'}"
+            end
+
+            # Load the model_data into a tempfile so it can be read by libsvm-ruby-swig
+            begin
+              temp_file = Tempfile.new( file_name )
+              temp_file.write( model_data )
+              temp_file.close
+
+              # Load the trained LibSVM model
+              # NOTE:  Be *very* careful here, libsvm may segfault if
+              #        it tries to load an invalid file
+              # OPTIMIZE: Write validator for LibSVM model file  --  Sun Mar 25 20:55:08 2012
+              @svm_model = Model.new( temp_file.path )
+            ensure
+              temp_file.close
+              temp_file.unlink
+            end
+          rescue TypeError => e
+            # Marshal.load raises a type error if IO object is invalid,
+            # or the mashaled data is incompatible/invalid, so ignore
+            # those cases, otherwise raise the TypeError
+            if e.message =~ /^(instance of|incompatible marshal)/
+              raise Hercule::ClassifierError, 'Marshalled domain invalid'
+            else
+              raise e
+            end
+          rescue Mongo::GridFileNotFound
+            raise Hercule::ClassifierError, "Marshalled domain not found in specified database: #{file_name + '.dd'}"
+          rescue Mongo::InvalidNSName => e
+            raise Hercule::ClassifierError, e.message
           rescue Hercule::ClassifierError => e
             raise e
           end
