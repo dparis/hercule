@@ -42,7 +42,7 @@ module Hercule
     #            has been trained
     #
     # classify - Classify the specified document instance and return
-    #            the newly labeled document along with any
+    #            an array containing the label and  any
     #            confidence/probability data for the prediction in the
     #            form of a hash like:
     #

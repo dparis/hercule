@@ -123,7 +123,7 @@ module Hercule
 
         # Return the newly labeled document and an empty hash as a
         # placeholder for the probability data
-        return [document, probabilities]
+        return [document.label, probabilities]
       end
 
       # OPTIMIZE: Refactor load/persist options hash format  --  Sun Mar 25 20:23:07 2012
