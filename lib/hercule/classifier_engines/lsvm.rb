@@ -1,7 +1,6 @@
 require 'svm'
 require 'mongo' # OPTIMIZE: Make mongo optional requirement?  --  Sun Mar 25 15:12:58 2012
 require 'tempfile'
-require 'pry'
 
 require_relative 'base'
 
