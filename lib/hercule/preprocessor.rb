@@ -1,5 +1,6 @@
 require 'gtokenizer'
 require 'fast_stemmer'
+require 'nokogiri'
 
 module Hercule
   class Preprocessor
@@ -74,6 +75,39 @@ module Hercule
 
       def stem( word )
         word.stem
+      end
+
+      def extract_text_from_html( html )
+        # Convert parameter to nokogiri doc if it isn't already
+        html = html.to_html if html.is_a?( Nokogiri::HTML::Document )
+
+        # Re-parse HTML content so as to strip out blanks and
+        # entities, supressing errors related to malformed HTML
+        html = Nokogiri::HTML( html ) do |config|
+          config.noent.noblanks.noerror
+        end
+
+        # Strip out media tags and styling
+        html.search( "//script","//img","//iframe","//object","//embed","//param","//form","//meta","//link","//title" ).remove
+        html.search( "//div","//p","//span","//a","//h1","//h2","//h3","//h4","//h5","//h6","//ul","//ol" ).attr( 'class', '' ).attr( 'id', '' ).attr( 'style', '' )
+
+        # Collect all readable text chunks from the document
+        readable_text = []
+        html.traverse do |node|
+          if node.text? && !node.text.strip.empty?
+            # Assume node is readable text by default
+            is_readable = true
+
+            # Allow for a block to determine whether the node text is readable
+            is_readable = yield( node.text ) if block_given?
+            
+            # Add the node text to the list if it's still considered readable
+            readable_text << node.text if is_readable
+          end
+        end
+
+        # Join all readable text instances with newlines
+        readable_text.join("\n")
       end
     end
 

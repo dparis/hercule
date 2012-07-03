@@ -30,7 +30,10 @@ describe Hercule::Preprocessor do
 
     @word = "Testing"
     @word_stem = "Test"
-    
+
+    @html = "<!DOCTYPE html><html><head><title>PAGETITLE1</title><script type=\"text/javascript\">document.write(\"Hello World!\")</script></head><body><h1>HEADING1</h1><p>PARAGRAPH1</p></body></html>"    
+    @text_from_html = "HEADING1\nPARAGRAPH1"
+
     @preproc = Hercule::Preprocessor.new
   end
 
@@ -47,6 +50,27 @@ describe Hercule::Preprocessor do
     
     it 'should stem a word' do
       Hercule::Preprocessor.stem( @word ).should == @word_stem
+    end
+
+    context 'html extraction' do
+      it 'should process string data' do
+        extracted_text = Hercule::Preprocessor.extract_text_from_html( @html )
+        extracted_text.should == @text_from_html
+      end
+
+      it 'should process a Nokogiri HTML Document instance' do
+        nokogiri_doc = Nokogiri::HTML( @html )
+        extracted_text = Hercule::Preprocessor.extract_text_from_html( nokogiri_doc )
+        extracted_text.should == @text_from_html
+      end
+
+      it 'should accept a block to determine if a text node is readable text' do
+        extracted_text = Hercule::Preprocessor.extract_text_from_html( @html ) do |node_text|
+          node_text =~ /HEADING1/
+        end
+
+        extracted_text.should == "HEADING1"
+      end
     end
   end
 
