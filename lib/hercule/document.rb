@@ -61,16 +61,19 @@ module Hercule
         raise ArgumentError, "Could not determine valid feature set from method argument: #{features}"
       end
 
+      # Create a set from the feature list to enable quick membership tests
+      @feature_set = @feature_list.to_set
+
       # Register the specified domain
       Document.register_domain( @domain_id )
 
       # Add self to document cache if the current domain is not locked
       # and label is specified
       cache_document if current_domain && !current_domain.locked? && @label
-      
+
       # Rebuild the feature dictionary if the current domain is not locked
       rebuild_feature_dictionary if current_domain && !current_domain.locked?
-      
+
       # Calculate the feature vector
       calculate_feature_vector
     end
@@ -89,7 +92,7 @@ module Hercule
     class << self
       def register_domain( document_domain )
         registered_domain = false
-        
+
         if document_domain.is_a?( Domain )
           # A Domain instance was passed, register it indexed by the
           # domain id
@@ -127,7 +130,7 @@ module Hercule
 
         return deregistered_domain
       end
-      
+
       def find_domain( domain_id )
         @@document_domains[domain_id]
       end
@@ -166,13 +169,13 @@ module Hercule
         warn "[HERCULE] attempt to rebuild feature dictionary for locked domain '#{@domain}'"
         return
       end
-      
+
       # Extract the document instances from the cache hash values
       docs = current_domain.cache.values
 
       # Compile a list of unique features from each cached doc
       feature_dictionary = current_domain.dictionary
-      
+
       max_dict_id = feature_dictionary.keys.max || -1
 
       docs.each do |doc|
@@ -201,7 +204,7 @@ module Hercule
 
       @feature_vector = fd_ids.map do |fd_id|
         feature = fd[fd_id]
-        @feature_list.include?( feature ) ? 1 : 0 # TODO: TF-IDF here  --  Thu Mar  1 19:25:21 2012
+        @feature_set.member?( feature ) ? 1 : 0 # TODO: TF-IDF here  --  Thu Mar  1 19:25:21 2012
       end
     end
 
