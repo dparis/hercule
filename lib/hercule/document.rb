@@ -175,6 +175,7 @@ module Hercule
 
       # Compile a list of unique features from each cached doc
       feature_dictionary = current_domain.dictionary
+      feature_set        = current_domain.feature_set
 
       max_dict_id = feature_dictionary.keys.max || -1
 
@@ -183,9 +184,10 @@ module Hercule
         # dictionary already contains the feature, add it and assign a
         # new feature id
         doc.feature_list.each do |feature|
-          unless feature_dictionary.has_value?( feature )
+          unless feature_set.member?( feature )
             max_dict_id += 1
             feature_dictionary[max_dict_id] = feature
+            feature_set << feature
           end
         end
       end
@@ -216,7 +218,7 @@ module Hercule
       #----------------------------------------------------------------------------
       # Attributes
       #----------------------------------------------------------------------------
-      attr_accessor :id, :cache, :dictionary, :labels
+      attr_accessor :id, :cache, :dictionary, :labels, :feature_set
 
       #----------------------------------------------------------------------------
       # Instance Methods
@@ -233,6 +235,10 @@ module Hercule
         # id of the feature, which should map to the document vector position
         # for that feature
         @dictionary = options[:dictionary] || {}
+
+        # Set of features for this document domain, useful for quickly
+        # testing inclusion of a feature
+        @feature_set = options[:feature_set] || Set.new
 
         # Hash of document label values and ids used in classification
         @labels = options[:labels] || {}
